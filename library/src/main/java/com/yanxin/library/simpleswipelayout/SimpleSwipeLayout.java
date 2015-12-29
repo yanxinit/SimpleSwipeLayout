@@ -11,7 +11,9 @@ import android.view.View;
 import android.widget.FrameLayout;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class SimpleSwipeLayout extends FrameLayout {
 
@@ -19,24 +21,6 @@ public class SimpleSwipeLayout extends FrameLayout {
         Middle,
         Open,
         Close
-    }
-
-    public interface SwipeListener {
-        void onStartOpen(SimpleSwipeLayout layout);
-
-        void onOpen(SimpleSwipeLayout layout);
-
-        void onStartClose(SimpleSwipeLayout layout);
-
-        void onClose(SimpleSwipeLayout layout);
-
-        void onUpdate(SimpleSwipeLayout layout, int leftOffset, int topOffset);
-
-        void onHandRelease(SimpleSwipeLayout layout, float xvel, float yvel);
-    }
-
-    public interface SwipeInterceptHandle {
-        boolean shouldInterceptSwipe(MotionEvent ev);
     }
 
     public interface onMenuClickListener {
@@ -49,11 +33,11 @@ public class SimpleSwipeLayout extends FrameLayout {
 
     private ViewDragHelper mDragHelper;
 
-    private SwipeListener mSwipeListener;
     private onMenuClickListener mOnMenuClickListener;
 
-    private boolean mClickToClose;
     private int mValidDistance;
+
+    private Map<View, Rect> mViewInitLocationMap;
 
     public void setOnMenuClickListener(onMenuClickListener onMenuClickListener) {
         mOnMenuClickListener = onMenuClickListener;
@@ -62,9 +46,11 @@ public class SimpleSwipeLayout extends FrameLayout {
     private ViewDragHelper.Callback mDragHelperCallback = new ViewDragHelper.Callback() {
         @Override
         public boolean tryCaptureView(View child, int pointerId) {
-            if (child == mContentView)
-                return true;
-            return false;
+            if (child != mContentView) {
+                mDragHelper.captureChildView(mContentView, pointerId);
+                return false;
+            }
+            return true;
         }
 
         @Override
@@ -100,16 +86,30 @@ public class SimpleSwipeLayout extends FrameLayout {
         @Override
         public void onViewPositionChanged(View changedView, int left, int top, int dx, int dy) {
             if (changedView == mContentView) {
-                adjustMenuItemViews(dx);
+                adjustMenuItemViews(left, dx);
             }
             invalidate();
         }
     };
 
-    private void adjustMenuItemViews(int dx) {
+    private void adjustMenuItemViews(int left, int dx) {
+        int distanceX = left - getPaddingLeft();
+        int result = distanceX / mMenuItemViewList.size();
+        int remainder = distanceX % mMenuItemViewList.size();
+        int unit = 0;
+        if (remainder != 0)
+            unit = remainder / Math.abs(remainder);
         for (int i = 0; i < mMenuItemViewList.size(); i++) {
             View view = mMenuItemViewList.get(i);
-            view.setX(view.getX() + ((float) dx) / mMenuItemViewList.size() * (mMenuItemViewList.size() - i));
+            if (i == 0) {
+                view.offsetLeftAndRight(dx);
+                continue;
+            }
+            int offset = result * (mMenuItemViewList.size() - i) + unit;
+            remainder -= unit;
+//            view.setX(view.getX() + ((float) dx) / mMenuItemViewList.size() * (mMenuItemViewList.size() - i));
+            Rect rect = mViewInitLocationMap.get(view);
+            view.layout(rect.left + offset, rect.top, rect.right + offset, rect.bottom);
         }
     }
 
@@ -157,9 +157,15 @@ public class SimpleSwipeLayout extends FrameLayout {
         int left = getPaddingLeft();
         int top = getPaddingTop();
         if (mContentView != null)
-            mContentView.layout(left, top, left + mContentView.getMeasuredWidth(), mContentView.getMeasuredHeight());
+            mContentView.layout(left, top, left + mContentView.getMeasuredWidth(), top + mContentView.getMeasuredHeight());
+        if (mMenuItemViewList == null)
+            return;
+        mViewInitLocationMap = new HashMap<>();
         for (View view : mMenuItemViewList) {
             view.layout(mContentView.getRight(), mContentView.getTop(), mContentView.getRight() + view.getMeasuredWidth(), mContentView.getTop() + view.getMeasuredHeight());
+            Rect rect = new Rect();
+            view.getHitRect(rect);
+            mViewInitLocationMap.put(view, rect);
         }
     }
 
@@ -180,9 +186,10 @@ public class SimpleSwipeLayout extends FrameLayout {
         int action = MotionEventCompat.getActionMasked(event);
         switch (action) {
             case MotionEvent.ACTION_DOWN:
-                mDragHelper.processTouchEvent(event);
-                if (!isInContentView(event)) {
-                    mDragHelper.captureChildView(mContentView, event.getPointerId(0));
+                try {
+                    mDragHelper.processTouchEvent(event);
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
                 sX = event.getX();
                 sY = event.getY();
@@ -218,7 +225,11 @@ public class SimpleSwipeLayout extends FrameLayout {
                 }
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
-                mDragHelper.processTouchEvent(event);
+                try {
+                    mDragHelper.processTouchEvent(event);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
         }
         return true;
     }
@@ -234,9 +245,18 @@ public class SimpleSwipeLayout extends FrameLayout {
     @Override
     protected void onFinishInflate() {
         super.onFinishInflate();
-        mMenuItemViewList = getMenuItemViewList();
+        initMenuItemViews();
         mContentView = getContentView();
         setupMenuClick();
+    }
+
+    private void initMenuItemViews() {
+        if (getChildCount() <= 1)
+            return;
+        mMenuItemViewList = new ArrayList<>();
+        for (int i = 1; i < getChildCount(); i++) {
+            mMenuItemViewList.add(getChildAt(i));
+        }
     }
 
     private void setupMenuClick() {
@@ -255,14 +275,6 @@ public class SimpleSwipeLayout extends FrameLayout {
         if (getChildCount() == 0)
             return null;
         return getChildAt(0);
-    }
-
-    private List<View> getMenuItemViewList() {
-        mMenuItemViewList = new ArrayList<>();
-        for (int i = 1; i < getChildCount(); i++) {
-            mMenuItemViewList.add(getChildAt(i));
-        }
-        return mMenuItemViewList;
     }
 
     private Status getCurrentStatus() {

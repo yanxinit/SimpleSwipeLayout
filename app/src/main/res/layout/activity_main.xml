@@ -8,36 +8,46 @@
     <TextView
         android:id="@+id/content"
         android:layout_width="match_parent"
-        android:layout_height="300dp"
+        android:layout_height="200dp"
         android:background="@android:color/holo_orange_dark"
-        android:text="Hello World!" />
+        android:gravity="center"
+        android:text="@string/text_desc"
+        android:textSize="16sp" />
 
     <TextView
         android:id="@+id/menu1"
         android:layout_width="wrap_content"
-        android:layout_height="300dp"
+        android:layout_height="200dp"
         android:background="@android:color/holo_green_light"
-        android:text="Hello World!" />
+        android:gravity="center"
+        android:text="Hello World!"
+        android:textSize="16sp" />
 
     <TextView
         android:id="@+id/menu2"
         android:layout_width="wrap_content"
-        android:layout_height="300dp"
+        android:layout_height="200dp"
         android:background="@android:color/holo_blue_bright"
-        android:text="Hello World!" />
+        android:gravity="center"
+        android:text="Hello World!"
+        android:textSize="16sp" />
 
     <TextView
         android:id="@+id/menu3"
         android:layout_width="wrap_content"
-        android:layout_height="300dp"
+        android:layout_height="200dp"
         android:background="@android:color/holo_red_light"
-        android:text="Hello World!" />
+        android:gravity="center"
+        android:text="Hello World!"
+        android:textSize="16sp" />
 
     <TextView
         android:id="@+id/menu4"
         android:layout_width="wrap_content"
-        android:layout_height="300dp"
+        android:layout_height="200dp"
         android:background="@android:color/holo_purple"
-        android:text="Hello World!" />
+        android:gravity="center"
+        android:text="Hello World!"
+        android:textSize="16sp" />
 
 </com.yanxin.library.simpleswipelayout.SimpleSwipeLayout>
