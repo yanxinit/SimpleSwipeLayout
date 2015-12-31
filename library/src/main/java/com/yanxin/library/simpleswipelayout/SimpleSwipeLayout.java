@@ -10,6 +10,8 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.FrameLayout;
 
+import com.yanxin.library.simpleswipelayout.interfaces.SwipeListener;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -34,6 +36,7 @@ public class SimpleSwipeLayout extends FrameLayout {
     private ViewDragHelper mDragHelper;
 
     private onMenuClickListener mOnMenuClickListener;
+    private SwipeListener mSwipeListener;
 
     private int mValidDistance;
 
@@ -41,6 +44,10 @@ public class SimpleSwipeLayout extends FrameLayout {
 
     public void setOnMenuClickListener(onMenuClickListener onMenuClickListener) {
         mOnMenuClickListener = onMenuClickListener;
+    }
+
+    public void setSwipeListener(SwipeListener swipeListener) {
+        mSwipeListener = swipeListener;
     }
 
     private ViewDragHelper.Callback mDragHelperCallback = new ViewDragHelper.Callback() {
@@ -58,10 +65,7 @@ public class SimpleSwipeLayout extends FrameLayout {
             int minLeft = getPaddingLeft() - mDragDistance;
             int maxLeft = getPaddingLeft();
             int resultLeft = Math.min(maxLeft, Math.max(left, minLeft));
-            if (child == mContentView) {
-                return resultLeft;
-            }
-            return left;
+            return resultLeft;
         }
 
         @Override
@@ -72,25 +76,42 @@ public class SimpleSwipeLayout extends FrameLayout {
         @Override
         public void onViewReleased(View releasedChild, float xvel, float yvel) {
             super.onViewReleased(releasedChild, xvel, yvel);
-            float minSpeed = mDragHelper.getMinVelocity();
-            float currentX = releasedChild.getX();
-            float distanceX = Math.abs(getPaddingLeft() - currentX);
-            if (distanceX >= mDragDistance / 2 || xvel < -minSpeed) {
-                smoothOpen();
-            } else if (distanceX < mDragDistance / 2 || xvel > minSpeed) {
-                smoothClose();
-            }
-            invalidate();
+            processHandRelease(releasedChild, xvel);
+            if (mSwipeListener != null)
+                mSwipeListener.onHandRelease(SimpleSwipeLayout.this, xvel, yvel);
         }
 
         @Override
         public void onViewPositionChanged(View changedView, int left, int top, int dx, int dy) {
-            if (changedView == mContentView) {
-                adjustMenuItemViews(left, dx);
-            }
-            invalidate();
+            adjustMenuItemViews(left, dx);
+            notifySwipeListerer(left, top, dx, dy);
         }
     };
+
+    private void notifySwipeListerer(int left, int top, int dx, int dy) {
+        if (mSwipeListener == null)
+            return;
+        if (dx > 0)
+            mSwipeListener.onStartClose(this);
+        if (dx < 0)
+            mSwipeListener.onStartOpen(this);
+        mSwipeListener.onUpdate(this, dx, dy);
+        if (getCurrentStatus() == Status.Close)
+            mSwipeListener.onClose(this);
+        if (getCurrentStatus() == Status.Open)
+            mSwipeListener.onOpen(this);
+    }
+
+    private void processHandRelease(View releasedChild, float xvel) {
+        float minSpeed = mDragHelper.getMinVelocity();
+        float currentX = releasedChild.getX();
+        float distanceX = Math.abs(getPaddingLeft() - currentX);
+        if (distanceX >= mDragDistance / 2 || xvel < -minSpeed) {
+            smoothOpen();
+        } else if (distanceX < mDragDistance / 2 || xvel > minSpeed) {
+            smoothClose();
+        }
+    }
 
     private void adjustMenuItemViews(int left, int dx) {
         int distanceX = left - getPaddingLeft();
@@ -111,14 +132,17 @@ public class SimpleSwipeLayout extends FrameLayout {
             Rect rect = mViewInitLocationMap.get(view);
             view.layout(rect.left + offset, rect.top, rect.right + offset, rect.bottom);
         }
+        invalidate();
     }
 
-    private void smoothClose() {
+    public void smoothClose() {
         mDragHelper.smoothSlideViewTo(mContentView, getPaddingLeft(), getPaddingTop());
+        invalidate();
     }
 
-    private void smoothOpen() {
+    public void smoothOpen() {
         mDragHelper.smoothSlideViewTo(mContentView, getPaddingLeft() - mDragDistance, getPaddingTop());
+        invalidate();
     }
 
     public SimpleSwipeLayout(Context context) {
@@ -260,6 +284,13 @@ public class SimpleSwipeLayout extends FrameLayout {
     }
 
     private void setupMenuClick() {
+        mContentView.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (mOnMenuClickListener != null)
+                    mOnMenuClickListener.onMenuClick(v);
+            }
+        });
         for (View view : mMenuItemViewList) {
             view.setOnClickListener(new OnClickListener() {
                 @Override
