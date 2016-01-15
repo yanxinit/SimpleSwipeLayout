@@ -19,6 +19,12 @@ import java.util.Map;
 
 public class SimpleSwipeLayout extends FrameLayout {
 
+    private List<SwipeListener> mSwipeListeners = new ArrayList<>();
+
+    public void addSwipeListener(SwipeListener swipeListener) {
+        mSwipeListeners.add(swipeListener);
+    }
+
     public enum Status {
         Middle,
         Open,
@@ -36,7 +42,6 @@ public class SimpleSwipeLayout extends FrameLayout {
     private ViewDragHelper mDragHelper;
 
     private onMenuClickListener mOnMenuClickListener;
-    private SwipeListener mSwipeListener;
 
     private int mValidDistance;
 
@@ -44,10 +49,6 @@ public class SimpleSwipeLayout extends FrameLayout {
 
     public void setOnMenuClickListener(onMenuClickListener onMenuClickListener) {
         mOnMenuClickListener = onMenuClickListener;
-    }
-
-    public void setSwipeListener(SwipeListener swipeListener) {
-        mSwipeListener = swipeListener;
     }
 
     private ViewDragHelper.Callback mDragHelperCallback = new ViewDragHelper.Callback() {
@@ -77,8 +78,9 @@ public class SimpleSwipeLayout extends FrameLayout {
         public void onViewReleased(View releasedChild, float xvel, float yvel) {
             super.onViewReleased(releasedChild, xvel, yvel);
             processHandRelease(releasedChild, xvel);
-            if (mSwipeListener != null)
-                mSwipeListener.onHandRelease(SimpleSwipeLayout.this, xvel, yvel);
+            for (SwipeListener listener : mSwipeListeners) {
+                listener.onHandRelease(SimpleSwipeLayout.this, xvel, yvel);
+            }
         }
 
         @Override
@@ -89,17 +91,19 @@ public class SimpleSwipeLayout extends FrameLayout {
     };
 
     private void notifySwipeListerer(int left, int top, int dx, int dy) {
-        if (mSwipeListener == null)
+        if (mSwipeListeners == null || mSwipeListeners.size() == 0)
             return;
-        if (dx > 0)
-            mSwipeListener.onStartClose(this);
-        if (dx < 0)
-            mSwipeListener.onStartOpen(this);
-        mSwipeListener.onUpdate(this, dx, dy);
-        if (getCurrentStatus() == Status.Close)
-            mSwipeListener.onClose(this);
-        if (getCurrentStatus() == Status.Open)
-            mSwipeListener.onOpen(this);
+        for (SwipeListener listener : mSwipeListeners) {
+            if (dx > 0)
+                listener.onStartClose(this);
+            if (dx < 0)
+                listener.onStartOpen(this);
+            listener.onUpdate(this, dx, dy);
+            if (getCurrentStatus() == Status.Close)
+                listener.onClose(this);
+            if (getCurrentStatus() == Status.Open)
+                listener.onOpen(this);
+        }
     }
 
     private void processHandRelease(View releasedChild, float xvel) {
@@ -128,7 +132,6 @@ public class SimpleSwipeLayout extends FrameLayout {
             }
             int offset = result * (mMenuItemViewList.size() - i) + unit;
             remainder -= unit;
-//            view.setX(view.getX() + ((float) dx) / mMenuItemViewList.size() * (mMenuItemViewList.size() - i));
             Rect rect = mViewInitLocationMap.get(view);
             view.layout(rect.left + offset, rect.top, rect.right + offset, rect.bottom);
         }

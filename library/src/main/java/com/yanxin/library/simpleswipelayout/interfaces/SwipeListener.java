@@ -2,10 +2,8 @@ package com.yanxin.library.simpleswipelayout.interfaces;
 
 import com.yanxin.library.simpleswipelayout.SimpleSwipeLayout;
 
-/**
- * Created by YanXin on 2015/12/30.
- */
 public interface SwipeListener {
+
     void onStartOpen(SimpleSwipeLayout layout);
 
     void onOpen(SimpleSwipeLayout layout);
@@ -17,4 +15,5 @@ public interface SwipeListener {
     void onUpdate(SimpleSwipeLayout layout, int leftOffset, int topOffset);
 
     void onHandRelease(SimpleSwipeLayout layout, float xvel, float yvel);
+
 }
