@@ -42,12 +42,6 @@ public class MainActivity extends AppCompatActivity implements SimpleSwipeLayout
             case R.id.menu2:
                 Toast.makeText(this, "menu2 is clicked", Toast.LENGTH_SHORT).show();
                 break;
-            case R.id.menu3:
-                Toast.makeText(this, "menu3 is clicked", Toast.LENGTH_SHORT).show();
-                break;
-            case R.id.menu4:
-                Toast.makeText(this, "menu4 is clicked", Toast.LENGTH_SHORT).show();
-                break;
         }
     }
 }

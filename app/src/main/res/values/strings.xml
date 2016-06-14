@@ -1,4 +1,6 @@
 <resources>
     <string name="app_name">SimpleSwipeLayoutDemo</string>
-    <string name="text_desc"><![CDATA[<-- Pull Left]]></string>
+    <string name="text_desc_pull_out"><![CDATA[<-- Pull Out]]></string>
+    <string name="text_desc_pull_stack"><![CDATA[<-- Pull Stack]]></string>
+    <string name="text_desc_lay_down"><![CDATA[<-- Lay Down]]></string>
 </resources>

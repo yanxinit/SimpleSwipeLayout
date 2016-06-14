@@ -1,6 +1,7 @@
 package com.yanxin.library.simpleswipelayout;
 
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.Rect;
 import android.support.v4.view.MotionEventCompat;
 import android.support.v4.view.ViewCompat;
@@ -30,7 +31,7 @@ public class SimpleSwipeLayout extends FrameLayout {
     private SwipeListener mSwipeListener;
     private onMenuClickListener mOnMenuClickListener;
 
-    private Mode mMode = Mode.PullOut;
+    private Mode mMode;
 
     public enum Status {
         Middle,
@@ -39,8 +40,8 @@ public class SimpleSwipeLayout extends FrameLayout {
     }
 
     public enum Mode {
-        PullOut,
         LayDown,
+        PullOut,
         PullStack
     }
 
@@ -177,6 +178,11 @@ public class SimpleSwipeLayout extends FrameLayout {
 
     public SimpleSwipeLayout(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
+
+        TypedArray typedArray = context.obtainStyledAttributes(attrs, R.styleable.SwipeLayout);
+        mMode = Mode.values()[typedArray.getInt(R.styleable.SwipeLayout_mode, Mode.PullStack.ordinal())];
+        typedArray.recycle();
+
         init();
     }
 
