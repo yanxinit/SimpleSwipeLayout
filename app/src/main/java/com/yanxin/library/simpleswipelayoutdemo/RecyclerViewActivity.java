@@ -16,7 +16,7 @@ public class RecyclerViewActivity extends AppCompatActivity {
         setContentView(R.layout.recyclerview);
         recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        recyclerView.addItemDecoration(new DividerItemDecoration(this));
+        recyclerView.addItemDecoration(new DividerItemDecoration(this, DividerItemDecoration.VERTICAL_LIST, 0));
         mAdapter = new RecyclerViewAdapter(this);
         recyclerView.setAdapter(mAdapter);
     }

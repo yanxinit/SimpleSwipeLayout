@@ -9,16 +9,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.yanxin.library.simpleswipelayout.SimpleSwipeLayout;
-import com.yanxin.library.simpleswipelayout.SwipeItemMangerImpl;
-import com.yanxin.library.simpleswipelayout.interfaces.SwipeAdapter;
-import com.yanxin.library.simpleswipelayout.interfaces.SwipeItemManager;
 
 /**
  * Created by YanXin on 2015/12/30.
  */
-public class RecyclerViewAdapter extends RecyclerView.Adapter implements SwipeAdapter {
-
-    private SwipeItemManager mSwipeItemManager = new SwipeItemMangerImpl(this);
+public class RecyclerViewAdapter extends RecyclerView.Adapter {
 
     private Context mContext;
 
@@ -52,16 +47,6 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter implements SwipeAd
         return adapterData.length;
     }
 
-    @Override
-    public int getSwipeLayoutResourceId(int position) {
-        return R.id.swipe_layout;
-    }
-
-    @Override
-    public void notifyDatasetChanged() {
-        notifyDataSetChanged();
-    }
-
     class MyViewHolder extends RecyclerView.ViewHolder {
 
         TextView mContent;
@@ -73,21 +58,20 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter implements SwipeAd
             mSimpleSwipeLayout = (SimpleSwipeLayout) itemView.findViewById(R.id.swipe_layout);
         }
 
-        public void bind(final int position, String s) {
-            mSwipeItemManager.bind(itemView, position);
+        public void bind(final int position, final String s) {
             mContent.setText(s);
             mSimpleSwipeLayout.setOnMenuClickListener(new SimpleSwipeLayout.onMenuClickListener() {
                 @Override
                 public void onMenuClick(View view) {
                     switch (view.getId()) {
                         case R.id.menu1:
-                            Toast.makeText(mContext, "点击收藏", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(mContext, "收藏" + s, Toast.LENGTH_SHORT).show();
                             break;
                         case R.id.menu2:
-                            Toast.makeText(mContext, "点击删除", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(mContext, "删除" + s, Toast.LENGTH_SHORT).show();
                             break;
                         case R.id.content:
-                            Toast.makeText(mContext, "点击item", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(mContext, "点击" + s, Toast.LENGTH_SHORT).show();
                             break;
                     }
                 }

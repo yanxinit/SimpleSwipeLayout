@@ -14,6 +14,6 @@ public interface SwipeListener {
 
     void onUpdate(SimpleSwipeLayout layout, int leftOffset, int topOffset);
 
-    void onHandRelease(SimpleSwipeLayout layout, float xvel, float yvel);
+    void onHandRelease(SimpleSwipeLayout layout, float xVel, float yVel);
 
 }

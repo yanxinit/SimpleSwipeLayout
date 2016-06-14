@@ -19,11 +19,18 @@ import java.util.Map;
 
 public class SimpleSwipeLayout extends FrameLayout {
 
-    private List<SwipeListener> mSwipeListeners = new ArrayList<>();
+    private int mDragDistance;
+    private List<View> mMenuItemViewList;
+    private View mContentView;
 
-    public void addSwipeListener(SwipeListener swipeListener) {
-        mSwipeListeners.add(swipeListener);
-    }
+    private ViewDragHelper mDragHelper;
+    private int mValidDistance;
+    private Map<View, Rect> mViewInitLocationMap;
+
+    private SwipeListener mSwipeListener;
+    private onMenuClickListener mOnMenuClickListener;
+
+    private Mode mMode = Mode.PullOut;
 
     public enum Status {
         Middle,
@@ -31,24 +38,22 @@ public class SimpleSwipeLayout extends FrameLayout {
         Close
     }
 
+    public enum Mode {
+        PullOut,
+        LayDown,
+        PullStack
+    }
+
     public interface onMenuClickListener {
         void onMenuClick(View view);
     }
 
-    private int mDragDistance;
-    private List<View> mMenuItemViewList;
-    private View mContentView;
-
-    private ViewDragHelper mDragHelper;
-
-    private onMenuClickListener mOnMenuClickListener;
-
-    private int mValidDistance;
-
-    private Map<View, Rect> mViewInitLocationMap;
-
     public void setOnMenuClickListener(onMenuClickListener onMenuClickListener) {
         mOnMenuClickListener = onMenuClickListener;
+    }
+
+    public void setSwipeListener(SwipeListener swipeListener) {
+        mSwipeListener = swipeListener;
     }
 
     private ViewDragHelper.Callback mDragHelperCallback = new ViewDragHelper.Callback() {
@@ -78,46 +83,35 @@ public class SimpleSwipeLayout extends FrameLayout {
         public void onViewReleased(View releasedChild, float xvel, float yvel) {
             super.onViewReleased(releasedChild, xvel, yvel);
             processHandRelease(releasedChild, xvel);
-            for (SwipeListener listener : mSwipeListeners) {
-                listener.onHandRelease(SimpleSwipeLayout.this, xvel, yvel);
-            }
+            if (mSwipeListener != null)
+                mSwipeListener.onHandRelease(SimpleSwipeLayout.this, xvel, yvel);
         }
 
         @Override
         public void onViewPositionChanged(View changedView, int left, int top, int dx, int dy) {
-            adjustMenuItemViews(left, dx);
-            notifySwipeListerer(left, top, dx, dy);
+            switch (mMode) {
+                case PullOut:
+                    onPullOutViewPositionChanged(left, dx);
+                    break;
+                case PullStack:
+                    onPullStackViewPositionChanged(left, dx);
+                    break;
+            }
+
+            notifySwipeListener(left, top, dx, dy);
         }
     };
 
-    private void notifySwipeListerer(int left, int top, int dx, int dy) {
-        if (mSwipeListeners == null || mSwipeListeners.size() == 0)
-            return;
-        for (SwipeListener listener : mSwipeListeners) {
-            if (dx > 0)
-                listener.onStartClose(this);
-            if (dx < 0)
-                listener.onStartOpen(this);
-            listener.onUpdate(this, dx, dy);
-            if (getCurrentStatus() == Status.Close)
-                listener.onClose(this);
-            if (getCurrentStatus() == Status.Open)
-                listener.onOpen(this);
+    private void onPullOutViewPositionChanged(int left, int dx) {
+        for (View view : mMenuItemViewList) {
+            Rect rect = mViewInitLocationMap.get(view);
+            view.layout(rect.left + dx, rect.top, rect.right + dx, rect.bottom);
+            calenderRect(view);
         }
+        invalidate();
     }
 
-    private void processHandRelease(View releasedChild, float xvel) {
-        float minSpeed = mDragHelper.getMinVelocity();
-        float currentX = releasedChild.getX();
-        float distanceX = Math.abs(getPaddingLeft() - currentX);
-        if (distanceX >= mDragDistance / 2 || xvel < -minSpeed) {
-            smoothOpen();
-        } else if (distanceX < mDragDistance / 2 || xvel > minSpeed) {
-            smoothClose();
-        }
-    }
-
-    private void adjustMenuItemViews(int left, int dx) {
+    private void onPullStackViewPositionChanged(int left, int dx) {
         int distanceX = left - getPaddingLeft();
         int result = distanceX / mMenuItemViewList.size();
         int remainder = distanceX % mMenuItemViewList.size();
@@ -136,6 +130,31 @@ public class SimpleSwipeLayout extends FrameLayout {
             view.layout(rect.left + offset, rect.top, rect.right + offset, rect.bottom);
         }
         invalidate();
+    }
+
+    private void notifySwipeListener(int left, int top, int dx, int dy) {
+        if (mSwipeListener == null)
+            return;
+        if (dx > 0)
+            mSwipeListener.onStartClose(this);
+        if (dx < 0)
+            mSwipeListener.onStartOpen(this);
+        mSwipeListener.onUpdate(this, dx, dy);
+        if (getCurrentStatus() == Status.Close)
+            mSwipeListener.onClose(this);
+        if (getCurrentStatus() == Status.Open)
+            mSwipeListener.onOpen(this);
+    }
+
+    private void processHandRelease(View releasedChild, float xvel) {
+        float minSpeed = mDragHelper.getMinVelocity();
+        float currentX = releasedChild.getX();
+        float distanceX = Math.abs(getPaddingLeft() - currentX);
+        if (distanceX >= mDragDistance / 2 || xvel < -minSpeed) {
+            smoothOpen();
+        } else if (distanceX < mDragDistance / 2 || xvel > minSpeed) {
+            smoothClose();
+        }
     }
 
     public void smoothClose() {
@@ -164,6 +183,7 @@ public class SimpleSwipeLayout extends FrameLayout {
     private void init() {
         mDragHelper = ViewDragHelper.create(this, mDragHelperCallback);
         mValidDistance = mDragHelper.getTouchSlop();
+        mViewInitLocationMap = new HashMap<>();
     }
 
     @Override
@@ -175,34 +195,100 @@ public class SimpleSwipeLayout extends FrameLayout {
     }
 
     @Override
-    protected void onLayout(boolean changed, int l, int t, int r, int b) {
-        initData();
-        startLayout();
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        calculateDragDistance();
     }
 
-    private void startLayout() {
+    @Override
+    protected void onLayout(boolean changed, int l, int t, int r, int b) {
+        layoutContentView();
+
+        mViewInitLocationMap.clear();
+        switch (mMode) {
+            case LayDown:
+                layoutLayDown();
+                break;
+            case PullStack:
+                layoutPullStack();
+                break;
+            case PullOut:
+                layoutPullOut();
+                break;
+        }
+    }
+
+    private void layoutContentView() {
         int left = getPaddingLeft();
         int top = getPaddingTop();
-        if (mContentView != null)
-            mContentView.layout(left, top, left + mContentView.getMeasuredWidth(), top + mContentView.getMeasuredHeight());
-        if (mMenuItemViewList == null)
-            return;
-        mViewInitLocationMap = new HashMap<>();
+        mContentView.layout(
+                left,
+                top,
+                left + mContentView.getMeasuredWidth(),
+                top + mContentView.getMeasuredHeight()
+        );
+        mContentView.bringToFront();
+    }
+
+    private void layoutPullOut() {
+        View lastView = mContentView;
         for (View view : mMenuItemViewList) {
-            view.layout(mContentView.getRight(), mContentView.getTop(), mContentView.getRight() + view.getMeasuredWidth(), mContentView.getTop() + view.getMeasuredHeight());
-            Rect rect = new Rect();
-            view.getHitRect(rect);
-            mViewInitLocationMap.put(view, rect);
+            view.layout(
+                    lastView.getRight(),
+                    lastView.getTop(),
+                    lastView.getRight() + view.getMeasuredWidth(),
+                    lastView.getTop() + view.getMeasuredHeight()
+            );
+            calenderRect(view);
+            lastView = view;
         }
     }
 
-    private void initData() {
-        if (mMenuItemViewList != null) {
-            mDragDistance = 0;
-            for (View view : mMenuItemViewList) {
-                mDragDistance += view.getMeasuredWidth();
-            }
+    private void layoutLayDown() {
+        View lastView = mContentView;
+        for (int i = mMenuItemViewList.size() - 1; i >= 0; i--) {
+            View view = mMenuItemViewList.get(i);
+            if (lastView == mContentView)
+                view.layout(
+                        lastView.getRight() - view.getMeasuredWidth(),
+                        lastView.getTop(),
+                        lastView.getRight(),
+                        lastView.getTop() + view.getMeasuredHeight()
+                );
+            else
+                view.layout(
+                        lastView.getLeft() - view.getMeasuredWidth(),
+                        lastView.getTop(),
+                        lastView.getLeft(),
+                        lastView.getTop() + view.getMeasuredHeight()
+                );
+            calenderRect(view);
+            lastView = view;
         }
+    }
+
+    private void calenderRect(View view) {
+        Rect rect = new Rect();
+        view.getHitRect(rect);
+        mViewInitLocationMap.put(view, rect);
+    }
+
+    private void layoutPullStack() {
+        for (View view : mMenuItemViewList) {
+            view.layout(
+                    mContentView.getRight(),
+                    mContentView.getTop(),
+                    mContentView.getRight() + view.getMeasuredWidth(),
+                    mContentView.getTop() + view.getMeasuredHeight()
+            );
+            calenderRect(view);
+        }
+    }
+
+    private void calculateDragDistance() {
+        mDragDistance = 0;
+        for (View view : mMenuItemViewList)
+            mDragDistance += view.getMeasuredWidth();
     }
 
     float sX;
